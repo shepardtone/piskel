@@ -22,11 +22,13 @@
     $.subscribe(Events.SELECTION_PASTE, this.paste.bind(this));
 
     var shortcuts = pskl.service.keyboard.Shortcuts;
-    pskl.app.shortcutService.registerShortcut(shortcuts.SELECTION.PASTE, this.paste.bind(this));
-    pskl.app.shortcutService.registerShortcut(shortcuts.SELECTION.CUT, this.cut.bind(this));
-    pskl.app.shortcutService.registerShortcut(shortcuts.SELECTION.COPY, this.copy.bind(this));
     pskl.app.shortcutService.registerShortcut(shortcuts.SELECTION.DELETE, this.onDeleteShortcut_.bind(this));
     pskl.app.shortcutService.registerShortcut(shortcuts.SELECTION.COMMIT, this.commit.bind(this));
+
+    // These 3 events should be handled by a new separated service
+    window.addEventListener('cut', this.cut.bind(this), true);
+    window.addEventListener('copy', this.copy.bind(this), true);
+    window.addEventListener('paste', this.paste.bind(this), true);
 
     $.subscribe(Events.TOOL_SELECTED, $.proxy(this.onToolSelected_, this));
   };
@@ -83,19 +85,62 @@
     });
   };
 
-  ns.SelectionManager.prototype.cut = function() {
-    if (this.currentSelection) {
+  ns.SelectionManager.prototype.copy = function(event) {
+    // TODO the copy method in this file should not rely on a copy event, it should simply update the current selection
+    if (this.currentSelection && this.piskelController.getCurrentFrame()) {
+      this.currentSelection.fillSelectionFromFrame(this.piskelController.getCurrentFrame());
+      event.clipboardData.setData('text/plain', JSON.stringify(this.currentSelection));
+      event.preventDefault();
+    }
+  };
+
+  ns.SelectionManager.prototype.cut = function(event) {
+    // TODO the copy method in this file should not rely on a copy event, it should simply update the current selection
+    if (this.currentSelection && this.piskelController.getCurrentFrame()) {
       // Put cut target into the selection:
       this.currentSelection.fillSelectionFromFrame(this.piskelController.getCurrentFrame());
+      event.clipboardData.setData('text/plain', JSON.stringify(this.currentSelection));
+      event.preventDefault();
       this.erase();
     }
   };
 
   ns.SelectionManager.prototype.paste = function() {
+    var items = event.clipboardData.items;
+
+    var blob;
+    for (var i = 0 ; i < items.length ;i++) {
+      if (/^image/i.test(items[i].type)) {
+        blob = items[i].getAsFile();
+        break;
+      }
+    }
+
+    if (blob) {
+      pskl.utils.FileUtils.readImageFile(blob, function (image) {
+        // TODO: really hacky need to extract the "on image loaded" logic somewhere else
+        pskl.app.fileDropperService.dropPosition_ = {x: 0, y: 0};
+        pskl.app.fileDropperService.onImageLoaded_(image, blob);
+      }.bind(this));
+      event.stopPropagation();
+      return;
+    } else {
+      console.log('Your clipboard doesn\'t contain any image');
+    }
+
+
     if (!this.currentSelection || !this.currentSelection.hasPastedContent) {
-      if (window.localStorage.getItem('piskel.clipboard')) {
-        this.currentSelection = JSON.parse(window.localStorage.getItem('piskel.clipboard'));
+      var pastedContent;
+      for (var i = 0 ; i < items.length ;i++) {
+        if (/^text\/plain/i.test(items[i].type)) {
+          pastedContent = items[i].getData('text/plain');
+          break;
+        }
+      }
+      if (pastedContent) {
+        this.currentSelection = JSON.parse(pastedContent);
       } else {
+        // Allow the event
         return;
       }
     }
@@ -145,13 +190,6 @@
       }
       frame.setPixel(pixel.col, pixel.row, pixel.color);
     });
-  };
-
-  ns.SelectionManager.prototype.copy = function() {
-    if (this.currentSelection && this.piskelController.getCurrentFrame()) {
-      this.currentSelection.fillSelectionFromFrame(this.piskelController.getCurrentFrame());
-      window.localStorage.setItem('piskel.clipboard', JSON.stringify(this.currentSelection));
-    }
   };
 
   /**
