@@ -16,14 +16,14 @@
     this.minimapEl = document.createElement('DIV');
     this.minimapEl.className = 'minimap-crop-frame';
     this.minimapEl.style.display = 'none';
-    $(this.container).append(this.minimapEl);
+    this.container.appendChild(this.minimapEl);
 
     // Init mouse events
-    $(this.container).mousedown(this.onMinimapMousedown_.bind(this));
-    $('body').mousemove(this.onMinimapMousemove_.bind(this));
-    $('body').mouseup(this.onMinimapMouseup_.bind(this));
+    this.container.addEventListener('mousedown', this.onMinimapMousedown_.bind(this));
+    document.body.addEventListener('mousemove', this.onMinimapMousemove_.bind(this));
+    document.body.addEventListener('mouseup', this.onMinimapMouseup_.bind(this));
 
-    $.subscribe(Events.ZOOM_CHANGED, $.proxy(this.renderMinimap_, this));
+    $.subscribe(Events.ZOOM_CHANGED, this.renderMinimap_.bind(this));
   };
 
   ns.MinimapController.prototype.renderMinimap_ = function () {
@@ -40,8 +40,9 @@
     var minimapSize = this.getMinimapSize_();
     var previewSize = this.getPreviewSize_();
 
-    var containerHeight = this.container.height();
-    var containerWidth = this.container.width();
+    var containerRect = this.container.getBoundingClientRect();
+    var containerHeight = containerRect.height;
+    var containerWidth = containerRect.width;
 
     // offset(x, y) in frame pixels
     var offset = this.drawingController.getRenderer().getOffset();
@@ -60,7 +61,7 @@
     this.minimapEl.style.display = 'block';
     this.minimapEl.style.width = Math.min(minimapSize.width, containerWidth) + 'px';
     this.minimapEl.style.height = Math.min(minimapSize.height, containerHeight) + 'px';
-    this.minimapEl.style.left = Math.max(0, left) +  'px';
+    this.minimapEl.style.left = (Math.max(0, left) + Constants.RIGHT_COLUMN_PADDING_LEFT) +  'px';
     this.minimapEl.style.top = Math.max(0, top) +  'px';
 
     this.isVisible = true;

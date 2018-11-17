@@ -1,6 +1,6 @@
 {
   "name": "piskel",
-  "version": "0.12.1",
+  "version": "0.15.0-SNAPSHOT",
   "description": "Pixel art editor",
   "author": "Julian Descottes <julian.descottes@gmail.com>",
   "contributors": [
@@ -17,7 +17,8 @@
     "misc/scripts/piskel-root"
   ],
   "bin": {
-    "piskel-root": "./misc/scripts/piskel-root"
+    "piskel-root": "./misc/scripts/piskel-root",
+    "piskel-cli": "./cli/index.js"
   },
   "main": "./dest/prod/index.html",
   "scripts": {
@@ -45,7 +46,6 @@
     "grunt-karma": "1.0.0",
     "grunt-leading-indent": "0.2.0",
     "grunt-nw-builder": "3.1.0",
-    "grunt-open": "0.2.3",
     "grunt-replace": "1.0.1",
     "grunt-spritesmith": "6.4.0",
     "jasmine-core": "2.6.1",
@@ -64,5 +64,8 @@
     "toolbar": false,
     "width": 1000,
     "height": 700
+  },
+  "dependencies": {
+    "minimist": "^1.2.0"
   }
 }

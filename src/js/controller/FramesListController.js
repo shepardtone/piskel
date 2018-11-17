@@ -5,7 +5,8 @@
     SELECT : 'select',
     CLONE : 'clone',
     DELETE : 'delete',
-    NEW_FRAME : 'newframe'
+    NEW_FRAME : 'newframe',
+    TOGGLE: 'toggle'
   };
 
   ns.FramesListController = function (piskelController, container) {
@@ -114,6 +115,8 @@
       this.tiles.push(newtile);
       this.previewList.insertBefore(newtile, this.addFrameTile);
       this.updateScrollerOverflows();
+    } else if (action == ACTION.TOGGLE) {
+      this.piskelController.toggleFrameVisibilityAt(index);
     }
 
     this.flagForRedraw_();
@@ -127,9 +130,17 @@
       // Remove selected class
       this.tiles[i].classList.remove('selected');
 
+      // Remove toggle class
+      this.tiles[i].querySelector('.tile-count').classList.remove('toggled');
+
       // Update tile numbers
       this.tiles[i].setAttribute('data-tile-number', i);
       this.tiles[i].querySelector('.tile-count').innerHTML = (i + 1);
+
+      // Update visibility
+      if (this.piskelController.hasVisibleFrameAt(i)) {
+        this.tiles[i].querySelector('.tile-count').classList.add('toggled');
+      }
 
       // Check if any tile is updated
       var hash = this.piskelController.getCurrentLayer().getFrameAt(i).getHash();
@@ -162,7 +173,10 @@
     this.previewList.innerHTML = '';
 
     // Manually remove tooltips since mouseout events were shortcut by the DOM refresh:
-    $('.tooltip').remove();
+    var tooltips = document.querySelectorAll('.tooltip');
+    Array.prototype.forEach.call(tooltips, function (tooltip) {
+      tooltip.parentNode.removeChild(tooltip);
+    });
 
     var frameCount = this.piskelController.getFrameCount();
 
@@ -190,8 +204,8 @@
   ns.FramesListController.prototype.initDragndropBehavior_ = function () {
     $(this.previewList).sortable({
       placeholder: 'preview-tile preview-tile-drop-proxy',
-      update: $.proxy(this.onUpdate_, this),
-      stop: $.proxy(this.onSortableStop_, this),
+      update: this.onUpdate_.bind(this),
+      stop: this.onSortableStop_.bind(this),
       items: '.preview-tile',
       axis: 'y',
       tolerance: 'pointer'
@@ -203,8 +217,10 @@
    * @private
    */
   ns.FramesListController.prototype.onUpdate_ = function (event, ui) {
-    var originFrameId = parseInt(ui.item.data('tile-number'), 10);
-    var targetInsertionId = $('.preview-tile').index(ui.item);
+    var movedItem = ui.item.get(0);
+    var originFrameId = parseInt(movedItem.dataset.tileNumber, 10);
+    var tiles = document.querySelectorAll('.preview-tile');
+    var targetInsertionId = Array.prototype.indexOf.call(tiles, movedItem);
 
     this.piskelController.moveFrame(originFrameId, targetInsertionId);
     this.piskelController.setCurrentFrameIndex(targetInsertionId);
@@ -220,14 +236,13 @@
   ns.FramesListController.prototype.onSortableStop_ = function (event, ui) {
     this.justDropped = true;
 
-    this.resizeTimer = window.setTimeout($.proxy(function() {
+    this.resizeTimer = window.setTimeout((function() {
       this.justDropped = false;
-    }, this), 200);
+    }).bind(this), 200);
   };
 
   /**
    * @private
-   * TODO(vincz): clean this giant rendering function & remove listeners.
    */
   ns.FramesListController.prototype.createPreviewTile_ = function(tileNumber) {
     var currentFrame = this.piskelController.getCurrentLayer().getFrameAt(tileNumber);
@@ -286,8 +301,12 @@
     previewTileRoot.appendChild(dndHandle);
 
     // Add tile count
-    var tileCount = document.createElement('div');
-    tileCount.className = 'tile-overlay tile-count';
+    var tileCount = document.createElement('button');
+    tileCount.setAttribute('rel', 'tooltip');
+    tileCount.setAttribute('title', 'Toggle for preview');
+    tileCount.setAttribute('data-tile-number', tileNumber);
+    tileCount.setAttribute('data-tile-action', ACTION.TOGGLE);
+    tileCount.className = 'tile-overlay tile-count toggle-frame-action';
     tileCount.innerHTML = tileNumber + 1;
     previewTileRoot.appendChild(tileCount);
 

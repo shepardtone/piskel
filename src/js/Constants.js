@@ -12,13 +12,15 @@ var Constants = {
   MAX_HEIGHT : 1024,
   MAX_WIDTH : 1024,
 
-  MAX_PALETTE_COLORS : 100,
+  MAX_PALETTE_COLORS : 256,
   // allow current colors service to get up to 256 colors.
   // GIF generation is different if the color count goes over 256.
   MAX_WORKER_COLORS : 256,
 
   PREVIEW_FILM_SIZE : 96,
   ANIMATED_PREVIEW_WIDTH : 200,
+  // Keep in sync with padding-left: 10px in layout.css
+  RIGHT_COLUMN_PADDING_LEFT : 10,
 
   DEFAULT_PEN_COLOR : '#000000',
   TRANSPARENT_COLOR : 'rgba(0, 0, 0, 0)',
@@ -63,6 +65,6 @@ var Constants = {
 
   // SERVICE URLS
   APPENGINE_SAVE_URL : 'save',
-  IMAGE_SERVICE_UPLOAD_URL : 'http://piskel-imgstore-b.appspot.com/__/upload',
-  IMAGE_SERVICE_GET_URL : 'http://piskel-imgstore-b.appspot.com/img/'
+  IMAGE_SERVICE_UPLOAD_URL : '{{protocol}}://piskel-imgstore-b.appspot.com/__/upload',
+  IMAGE_SERVICE_GET_URL : '{{protocol}}://piskel-imgstore-b.appspot.com/img/'
 };

@@ -10,9 +10,6 @@
   ns.app = {
 
     init : function () {
-      // Run preferences migration scripts for version v0.12.0
-      pskl.UserSettings.migrate_to_v0_12();
-
       /**
        * When started from APP Engine, appEngineToken_ (Boolean) should be set on window.pskl
        */
@@ -67,24 +64,24 @@
 
       this.drawingController = new pskl.controller.DrawingController(
         this.piskelController,
-        $('#drawing-canvas-container'));
+        document.querySelector('#drawing-canvas-container'));
       this.drawingController.init();
 
       this.previewController = new pskl.controller.preview.PreviewController(
         this.piskelController,
-        $('#animated-preview-canvas-container'));
+        document.querySelector('#animated-preview-canvas-container'));
       this.previewController.init();
 
       this.minimapController = new pskl.controller.MinimapController(
         this.piskelController,
         this.previewController,
         this.drawingController,
-        $('.minimap-container'));
+        document.querySelector('.minimap-container'));
       this.minimapController.init();
 
       this.framesListController = new pskl.controller.FramesListController(
         this.piskelController,
-        $('#preview-list-wrapper').get(0));
+        document.querySelector('#preview-list-wrapper'));
       this.framesListController.init();
 
       this.layersListController = new pskl.controller.LayersListController(this.piskelController);
@@ -173,6 +170,9 @@
         this.piskelController,
         this.currentColorsService);
       this.performanceReportService.init();
+
+      this.clipboardService = new pskl.service.ClipboardService(this.piskelController);
+      this.clipboardService.init();
 
       this.drawingLoop = new pskl.rendering.DrawingLoop();
       this.drawingLoop.addCallback(this.render, this);

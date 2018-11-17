@@ -183,22 +183,14 @@
 .import-meta-value,
 .import-meta-label {
   padding: 2px 4px;
-  border: 1px solid gold;
 }
 
 .import-meta-label {
   border-radius: 2px 0 0 2px;
   color: var(--highlight-color);
-  border-right-width: 0;
-}
-
-.import-meta-title .import-meta-label {
-  border-right-width: 1px;
-  border-radius: 2px;
 }
 
 .import-meta-value {
-  border-radius: 0 2px 2px 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -242,7 +234,7 @@
 .insert-mode-option {
   display: flex;
   align-items: center;
-  margin-bottom: 5px;
+  margin: 5px 0;
 }
 
 .import-resize-option :checked + span,
@@ -250,11 +242,15 @@
   color: var(--highlight-color);
 }
 
+.import-resize-option input,
+.insert-mode-option input {
+  margin: 5px;
+}
+
 /**
  * ADJUST SIZE
  */
-.import-resize-anchor-info,
-.import-resize-option-label {
+.import-resize-anchor-info {
   margin-bottom: 10px;
 }
 

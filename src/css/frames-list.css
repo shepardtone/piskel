@@ -135,6 +135,11 @@
   cursor: default;
 }
 
+.preview-tile .tile-overlay.tile-count.toggled {
+  background-color: gold;
+  color: black;
+}
+
 .preview-tile .tile-overlay.delete-frame-action {
    top: 0;
    right: 0;

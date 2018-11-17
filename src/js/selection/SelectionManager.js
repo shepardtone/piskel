@@ -14,21 +14,18 @@
   };
 
   ns.SelectionManager.prototype.init = function () {
-    $.subscribe(Events.SELECTION_CREATED, $.proxy(this.onSelectionCreated_, this));
-    $.subscribe(Events.SELECTION_DISMISSED, $.proxy(this.onSelectionDismissed_, this));
-    $.subscribe(Events.SELECTION_MOVE_REQUEST, $.proxy(this.onSelectionMoved_, this));
-    $.subscribe(Events.SELECTION_COPY, this.copy.bind(this));
-    $.subscribe(Events.SELECTION_CUT, this.cut.bind(this));
-    $.subscribe(Events.SELECTION_PASTE, this.paste.bind(this));
+    $.subscribe(Events.SELECTION_CREATED, this.onSelectionCreated_.bind(this));
+    $.subscribe(Events.SELECTION_DISMISSED, this.onSelectionDismissed_.bind(this));
+    $.subscribe(Events.SELECTION_MOVE_REQUEST, this.onSelectionMoved_.bind(this));
+    $.subscribe(Events.CLIPBOARD_COPY, this.copy.bind(this));
+    $.subscribe(Events.CLIPBOARD_CUT, this.copy.bind(this));
+    $.subscribe(Events.CLIPBOARD_PASTE, this.paste.bind(this));
 
     var shortcuts = pskl.service.keyboard.Shortcuts;
-    pskl.app.shortcutService.registerShortcut(shortcuts.SELECTION.PASTE, this.paste.bind(this));
-    pskl.app.shortcutService.registerShortcut(shortcuts.SELECTION.CUT, this.cut.bind(this));
-    pskl.app.shortcutService.registerShortcut(shortcuts.SELECTION.COPY, this.copy.bind(this));
     pskl.app.shortcutService.registerShortcut(shortcuts.SELECTION.DELETE, this.onDeleteShortcut_.bind(this));
     pskl.app.shortcutService.registerShortcut(shortcuts.SELECTION.COMMIT, this.commit.bind(this));
 
-    $.subscribe(Events.TOOL_SELECTED, $.proxy(this.onToolSelected_, this));
+    $.subscribe(Events.TOOL_SELECTED, this.onToolSelected_.bind(this));
   };
 
   /**
@@ -78,29 +75,85 @@
       scope : this,
       replay : {
         type : SELECTION_REPLAY.ERASE,
-        pixels : JSON.parse(JSON.stringify(pixels.slice(0)))
+        pixels : JSON.parse(JSON.stringify(pixels))
       }
     });
   };
 
-  ns.SelectionManager.prototype.cut = function() {
-    if (this.currentSelection) {
-      // Put cut target into the selection:
+  ns.SelectionManager.prototype.copy = function(event, domEvent) {
+    if (this.currentSelection && this.piskelController.getCurrentFrame()) {
       this.currentSelection.fillSelectionFromFrame(this.piskelController.getCurrentFrame());
-      this.erase();
+      if (domEvent) {
+        domEvent.clipboardData.setData('text/plain', this.currentSelection.stringify());
+        domEvent.preventDefault();
+      }
+      if (event.type === Events.CLIPBOARD_CUT) {
+        this.erase();
+      }
     }
   };
 
-  ns.SelectionManager.prototype.paste = function() {
-    if (!this.currentSelection || !this.currentSelection.hasPastedContent) {
-      if (window.localStorage.getItem('piskel.clipboard')) {
-        this.currentSelection = JSON.parse(window.localStorage.getItem('piskel.clipboard'));
-      } else {
-        return;
+  ns.SelectionManager.prototype.paste = function(event, domEvent) {
+    var items = domEvent ? domEvent.clipboardData.items : [];
+
+    try {
+      for (var i = 0 ; i < items.length ; i++) {
+        var item = items[i];
+
+        if (/^image/i.test(item.type)) {
+          this.pasteImage_(item);
+          event.stopPropagation();
+          return;
+        }
+
+        if (/^text\/plain/i.test(item.type)) {
+          this.pasteText_(item);
+          event.stopPropagation();
+          return;
+        }
       }
+    } catch (e) {
+      // Some of the clipboard APIs are not available on Safari/IE
+      // Allow Piskel to fallback on local currentSelection pasting.
     }
 
-    var pixels = this.currentSelection.pixels;
+    // temporarily keeping this code path for tests and fallbacks.
+    if (this.currentSelection && this.currentSelection.hasPastedContent) {
+      this.pastePixelsOnCurrentFrame_(this.currentSelection.pixels);
+    }
+  };
+
+  ns.SelectionManager.prototype.pasteImage_ = function(clipboardItem) {
+    var blob = clipboardItem.getAsFile();
+    pskl.utils.FileUtils.readImageFile(blob, function (image) {
+      pskl.app.fileDropperService.dropPosition_ = {x: 0, y: 0};
+      pskl.app.fileDropperService.onImageLoaded_(image, blob);
+    }.bind(this));
+  };
+
+  ns.SelectionManager.prototype.pasteText_ = function(clipboardItem) {
+    var blob = clipboardItem.getAsString(function (selectionString) {
+      var selectionData = JSON.parse(selectionString);
+      var time = selectionData.time;
+      var pixels = selectionData.pixels;
+
+      if (this.currentSelection && this.currentSelection.time >= time) {
+        // If the local selection is newer or equal to the one coming from the clipboard event
+        // use the local one. The reason is that the "move" information is only updated locally
+        // without synchronizing it to the clipboard.
+        // TODO: the selection should store the origin of the selection and the selection itself
+        // separately.
+        pixels = this.currentSelection.pixels;
+      }
+
+      if (pixels) {
+        // If the current clipboard data is some random text, pixels will not be defined.
+        this.pastePixelsOnCurrentFrame_(pixels);
+      }
+    }.bind(this));
+  };
+
+  ns.SelectionManager.prototype.pastePixelsOnCurrentFrame_ = function (pixels) {
     var frame = this.piskelController.getCurrentFrame();
 
     this.pastePixels_(frame, pixels);
@@ -123,8 +176,7 @@
     var tool = pskl.app.drawingController.currentToolBehavior;
     var isSelectionTool = tool instanceof pskl.tools.drawing.selection.BaseSelect;
     if (isSelectionTool) {
-      var overlay = pskl.app.drawingController.overlayFrame;
-      tool.commitSelection(overlay);
+      tool.commitSelection();
     }
   };
 
@@ -145,13 +197,6 @@
       }
       frame.setPixel(pixel.col, pixel.row, pixel.color);
     });
-  };
-
-  ns.SelectionManager.prototype.copy = function() {
-    if (this.currentSelection && this.piskelController.getCurrentFrame()) {
-      this.currentSelection.fillSelectionFromFrame(this.piskelController.getCurrentFrame());
-      window.localStorage.setItem('piskel.clipboard', JSON.stringify(this.currentSelection));
-    }
   };
 
   /**

@@ -43,8 +43,29 @@
   float : left;
 }
 
+.gif-export-warning {
+  display: none;
+}
+
+.gif-export-warning.visible {
+  display: flex;
+  align-items: center;
+  border: 1px solid red;
+  padding: 5px;
+  margin: 5px 0;
+}
+
+.gif-export-warning-icon {
+  flex-shrink: 0;
+  margin-right: 5px;
+}
+
+.gif-export-warning-message {
+  font-weight: normal;
+}
+
 .preview-upload-ongoing:before{
-  content: "Upload ongoing ...";
+  content: "Upload in progress...";
   position: absolute;
   display: block;
   height: 100%;
@@ -123,7 +144,8 @@
   overflow: hidden;
 }
 
-.export-panel-gif .button {
+.export-panel-gif .button,
+.export-panel-png .button {
   margin-right: 5px;
   width: 75px;
   flex-shrink: 0;
@@ -131,11 +153,6 @@
 
 .export-panel-png .textfield {
   width: 50px;
-}
-
-.png-export-dimension-info,
-.png-export-datauri-info {
-  margin-left: 5px;
 }
 
 #png-export-columns,

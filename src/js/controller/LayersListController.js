@@ -1,15 +1,18 @@
 (function () {
   var ns = $.namespace('pskl.controller');
 
-  var TOGGLE_LAYER_SHORTCUT = 'alt+L';
-
   ns.LayersListController = function (piskelController) {
     this.piskelController = piskelController;
-    this.layerPreviewShortcut = pskl.service.keyboard.Shortcuts.MISC.LAYER_PREVIEW  ;
+    this.layerPreviewShortcut = pskl.service.keyboard.Shortcuts.MISC.LAYER_PREVIEW;
+    this.startRenamingCurrentLayer_ = this.startRenamingCurrentLayer_.bind(this);
+    this.onRenameInput_ = this.onRenameInput_.bind(this);
   };
 
   ns.LayersListController.prototype.init = function () {
+    this.isRenaming = false;
+
     this.layerItemTemplate_ = pskl.utils.Template.get('layer-item-template');
+    this.layerNameInputTemplate_ = pskl.utils.Template.get('layer-name-input-template');
     this.rootEl = document.querySelector('.layers-list-container');
     this.layersListEl = document.querySelector('.layers-list');
     this.toggleLayerPreviewEl = document.querySelector('.layers-toggle-preview');
@@ -24,7 +27,7 @@
     this.updateToggleLayerPreview_();
 
     $.subscribe(Events.PISKEL_RESET, this.renderLayerList_.bind(this));
-    $.subscribe(Events.USER_SETTINGS_CHANGED, $.proxy(this.onUserSettingsChange_, this));
+    $.subscribe(Events.USER_SETTINGS_CHANGED, this.onUserSettingsChange_.bind(this));
   };
 
   ns.LayersListController.prototype.renderLayerList_ = function () {
@@ -77,7 +80,6 @@
 
   ns.LayersListController.prototype.updateButtonStatus_ = function () {
     var layers = this.piskelController.getLayers();
-    var currentLayer = this.piskelController.getCurrentLayer();
     var index = this.piskelController.getCurrentLayerIndex();
 
     var isLast = index === 0;
@@ -118,19 +120,46 @@
 
   ns.LayersListController.prototype.addLayerItem = function (layer, index) {
     var isSelected = this.piskelController.getCurrentLayer() === layer;
+    var isRenaming = isSelected && this.isRenaming;
     var layerItemHtml = pskl.utils.Template.replace(this.layerItemTemplate_, {
       'layername' : layer.getName(),
       'layerindex' : index,
       'isselected:current-layer-item' : isSelected,
-      'opacity': layer.getOpacity()
+      'opacity' : layer.getOpacity()
     });
     var layerItem = pskl.utils.Template.createFromHTML(layerItemHtml);
     this.layersListEl.insertBefore(layerItem, this.layersListEl.firstChild);
     if (layerItem.offsetWidth < layerItem.scrollWidth) {
-      $(layerItem).find('.layer-name')
-        .addClass('overflowing-name')
-        .attr('title', layer.getName())
-        .tooltip();
+      var layerNameEl = layerItem.querySelector('.layer-name');
+      layerNameEl.classList.add('overflowing-name');
+      layerNameEl.setAttribute('title', layer.getName());
+      layerNameEl.setAttribute('rel', 'tooltip');
+    }
+    if (isSelected) {
+      layerItem.removeEventListener('dblclick', this.startRenamingCurrentLayer_);
+      layerItem.addEventListener('dblclick', this.startRenamingCurrentLayer_);
+    }
+    if (isRenaming) {
+      var layerNameInputHtml = pskl.utils.Template.replace(this.layerNameInputTemplate_, {
+        'layername' : layer.getName()
+      });
+      var layerNameInput = pskl.utils.Template.createFromHTML(layerNameInputHtml);
+      var layerNameEl = layerItem.querySelector('.layer-name');
+      layerItem.replaceChild(layerNameInput, layerNameEl);
+      layerNameInput.removeEventListener('blur', this.onRenameInput_);
+      layerNameInput.removeEventListener('keydown', this.onRenameInput_);
+      layerNameInput.addEventListener('blur', this.onRenameInput_);
+      layerNameInput.addEventListener('keydown', this.onRenameInput_);
+      layerNameInput.focus();
+      layerNameInput.select();
+    }
+    var opacity = layer.getOpacity();
+    if (opacity == 1) {
+      layerItem.querySelector('.layer-item-opacity').style.color = '#ffd700';
+    } else if (opacity == 0) {
+      layerItem.querySelector('.layer-item-opacity').style.color = '#969696';
+    } else {
+      layerItem.querySelector('.layer-item-opacity').style.color = '#ffffff';
     }
   };
 
@@ -140,8 +169,13 @@
     if (el.classList.contains('button')) {
       this.onButtonClick_(el, evt);
     } else if (el.classList.contains('layer-name')) {
+      var currentIndex = this.piskelController.getCurrentLayerIndex();
       index = pskl.utils.Dom.getData(el, 'layerIndex');
-      this.piskelController.setCurrentLayerIndex(parseInt(index, 10));
+      if (index != currentIndex) {
+        var currentItem = el.parentElement.parentElement.querySelector('.current-layer-item');
+        currentItem.removeEventListener('dblclick', this.startRenamingCurrentLayer_);
+        this.piskelController.setCurrentLayerIndex(parseInt(index, 10));
+      }
     } else if (el.classList.contains('layer-item-opacity')) {
       index = pskl.utils.Dom.getData(el, 'layerIndex');
       var layer = this.piskelController.getLayerAt(parseInt(index, 10));
@@ -150,14 +184,29 @@
     }
   };
 
-  ns.LayersListController.prototype.renameCurrentLayer_ = function () {
-    var layer = this.piskelController.getCurrentLayer();
-    var name = window.prompt('Please enter the layer name', layer.getName());
-    if (name) {
-      var index = this.piskelController.getCurrentLayerIndex();
-      this.piskelController.renameLayerAt(index, name);
-      this.renderLayerList_();
+  ns.LayersListController.prototype.startRenamingCurrentLayer_ = function () {
+    this.isRenaming = true;
+    this.renderLayerList_();
+  };
+
+  ns.LayersListController.prototype.onRenameInput_ = function (evt) {
+    var el = evt.target || evt.srcElement;
+    if (evt.key === 'Enter') {
+      this.finishRenamingCurrentLayer_(el, el.value);
+    } else if (!evt.key || evt.key === 'Escape') {
+      this.finishRenamingCurrentLayer_(el);
     }
+  };
+
+  ns.LayersListController.prototype.finishRenamingCurrentLayer_ = function (input, newName) {
+    if (newName) {
+      var index = this.piskelController.getCurrentLayerIndex();
+      this.piskelController.renameLayerAt(index, newName);
+    }
+    input.removeEventListener('blur', this.onRenameInput_);
+    input.removeEventListener('keydown', this.onRenameInput_);
+    this.isRenaming = false;
+    this.renderLayerList_();
   };
 
   ns.LayersListController.prototype.mergeDownCurrentLayer_ = function () {
@@ -183,7 +232,7 @@
     } else if (action == 'merge') {
       this.mergeDownCurrentLayer_();
     } else if (action == 'edit') {
-      this.renameCurrentLayer_();
+      this.startRenamingCurrentLayer_();
     }
   };
 

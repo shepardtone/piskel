@@ -56,6 +56,7 @@
     this.setDisplaySize(renderingOptions.width, renderingOptions.height);
 
     this.setGridWidth(this.getUserGridWidth_());
+    this.setGridSpacing(this.getUserGridSpacing_());
 
     $.subscribe(Events.USER_SETTINGS_CHANGED, this.onUserSettingsChange_.bind(this));
   };
@@ -106,7 +107,7 @@
     this.displayWidth = width;
     this.displayHeight = height;
     if (this.displayCanvas) {
-      $(this.displayCanvas).remove();
+      this.displayCanvas.parentNode.removeChild(this.displayCanvas);
       this.displayCanvas = null;
     }
     this.createDisplayCanvas_();
@@ -146,6 +147,10 @@
     this.gridWidth_ = value;
   };
 
+  ns.FrameRenderer.prototype.setGridSpacing = function (value) {
+    this.gridSpacing_ = value;
+  };
+
   ns.FrameRenderer.prototype.getGridWidth = function () {
     if (!this.supportGridRendering) {
       return 0;
@@ -154,15 +159,29 @@
     return this.gridWidth_;
   };
 
+  ns.FrameRenderer.prototype.getGridSpacing = function () {
+    if (!this.supportGridRendering) {
+      return 0;
+    }
+
+    return this.gridSpacing_;
+  };
+
   /**
    * Compute a grid width value best suited to the current display context,
    * particularly for the current zoom level
    */
   ns.FrameRenderer.prototype.computeGridWidthForDisplay_ = function () {
+    var gridSpacing = this.getGridSpacing();
+    if (this.zoom * gridSpacing < 6) {
+      return 0;
+    }
+
     var gridWidth = this.getGridWidth();
-    while (this.zoom < 6 * gridWidth) {
+    while (gridWidth > 1 && this.zoom < 6 * gridWidth) {
       gridWidth--;
     }
+
     return gridWidth;
   };
 
@@ -180,13 +199,16 @@
 
     this.displayCanvas = pskl.utils.CanvasUtils.createCanvas(width, height, this.classList);
     pskl.utils.CanvasUtils.disableImageSmoothing(this.displayCanvas);
-    this.container.append(this.displayCanvas);
+    this.container.appendChild(this.displayCanvas);
   };
 
   ns.FrameRenderer.prototype.onUserSettingsChange_ = function (evt, settingName, settingValue) {
     var settings = pskl.UserSettings;
-    if (settingName == settings.GRID_WIDTH || settingName == settings.GRID_ENABLED) {
+    if (settingName == settings.GRID_WIDTH ||
+        settingName == settings.GRID_SPACING ||
+        settingName == settings.GRID_ENABLED) {
       this.setGridWidth(this.getUserGridWidth_());
+      this.setGridSpacing(this.getUserGridSpacing_());
     }
   };
 
@@ -196,15 +218,21 @@
     return gridEnabled ? width : 0;
   };
 
+  ns.FrameRenderer.prototype.getUserGridSpacing_ = function () {
+    var gridEnabled = pskl.UserSettings.get(pskl.UserSettings.GRID_ENABLED);
+    var spacing = pskl.UserSettings.get(pskl.UserSettings.GRID_SPACING);
+    return gridEnabled ? spacing : 0;
+  };
+
   /**
    * Transform a screen pixel-based coordinate (relative to the top-left corner of the rendered
    * frame) into a sprite coordinate in column and row.
    * @public
    */
   ns.FrameRenderer.prototype.getCoordinates = function(x, y) {
-    var containerOffset = this.container.offset();
-    x = x - containerOffset.left;
-    y = y - containerOffset.top;
+    var containerRect = this.container.getBoundingClientRect();
+    x = x - containerRect.left;
+    y = y - containerRect.top;
 
     // apply margins
     x = x - this.margin.x;
@@ -233,9 +261,9 @@
     x = x + this.margin.x;
     y = y + this.margin.y;
 
-    var containerOffset = this.container.offset();
-    x = x + containerOffset.left;
-    y = y + containerOffset.top;
+    var containerRect = this.container.getBoundingClientRect();
+    x = x + containerRect.left;
+    y = y + containerRect.top;
 
     return {
       x : x + (cellSize / 2),
@@ -298,6 +326,7 @@
 
     // Draw grid.
     var gridWidth = this.computeGridWidthForDisplay_();
+    var gridSpacing = this.getGridSpacing();
     if (gridWidth > 0) {
       var gridColor = this.getGridColor();
       // Scale out before drawing the grid.
@@ -313,11 +342,15 @@
 
       // Draw or clear vertical lines.
       for (var i = 1 ; i < frame.getWidth() ; i++) {
-        drawOrClear((i * z) - (gridWidth / 2), 0, gridWidth, h * z);
+        if (i % gridSpacing == 0) {
+          drawOrClear((i * z) - (gridWidth / 2), 0, gridWidth, h * z);
+        }
       }
       // Draw or clear horizontal lines.
       for (var j = 1 ; j < frame.getHeight() ; j++) {
-        drawOrClear(0, (j * z) - (gridWidth / 2), w * z, gridWidth);
+        if (j % gridSpacing == 0) {
+          drawOrClear(0, (j * z) - (gridWidth / 2), w * z, gridWidth);
+        }
       }
     }
 

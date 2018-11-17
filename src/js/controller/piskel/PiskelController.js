@@ -122,6 +122,16 @@
       l.addFrameAt(this.createEmptyFrame_(), index);
     }.bind(this));
 
+    this.onFrameAddedAt_(index);
+  };
+
+  ns.PiskelController.prototype.onFrameAddedAt_ = function (index) {
+    this.piskel.hiddenFrames = this.piskel.hiddenFrames.map(function (hiddenIndex) {
+      if (hiddenIndex >= index) {
+        return hiddenIndex + 1;
+      }
+    });
+
     this.setCurrentFrameIndex(index);
   };
 
@@ -135,6 +145,14 @@
     this.getLayers().forEach(function (l) {
       l.removeFrameAt(index);
     });
+
+    // Update the array of hidden frames since some hidden indexes might have shifted.
+    this.piskel.hiddenFrames = this.piskel.hiddenFrames.map(function (hiddenIndex) {
+      if (hiddenIndex > index) {
+        return hiddenIndex - 1;
+      }
+    });
+
     // Current frame index is impacted if the removed frame was before the current frame
     if (this.currentFrameIndex >= index && this.currentFrameIndex > 0) {
       this.setCurrentFrameIndex(this.currentFrameIndex - 1);
@@ -149,13 +167,64 @@
     this.getLayers().forEach(function (l) {
       l.duplicateFrameAt(index);
     });
-    this.setCurrentFrameIndex(index + 1);
+    this.onFrameAddedAt_(index + 1);
+  };
+
+  /**
+   * Toggle frame visibility for the frame at the provided index.
+   * A visible frame will be included in the animated preview.
+   */
+  ns.PiskelController.prototype.toggleFrameVisibilityAt = function (index) {
+    var hiddenFrames = this.piskel.hiddenFrames;
+    if (hiddenFrames.indexOf(index) === -1) {
+      hiddenFrames.push(index);
+    } else {
+      hiddenFrames = hiddenFrames.filter(function (i) {
+        return i !== index;
+      });
+    }
+
+    // Keep the hiddenFrames array sorted.
+    this.piskel.hiddenFrames = hiddenFrames.sort();
   };
 
   ns.PiskelController.prototype.moveFrame = function (fromIndex, toIndex) {
     this.getLayers().forEach(function (l) {
       l.moveFrame(fromIndex, toIndex);
     });
+
+    // Update the array of hidden frames since some hidden indexes might have shifted.
+    this.piskel.hiddenFrames = this.piskel.hiddenFrames.map(function (index) {
+      if (index === fromIndex) {
+        return toIndex;
+      }
+
+      // All the frames between fromIndex and toIndex changed their index.
+      var isImpacted = index >= Math.min(fromIndex, toIndex) &&
+                       index <= Math.max(fromIndex, toIndex);
+      if (isImpacted) {
+        if (fromIndex < toIndex) {
+          // If the frame moved to a higher index, all impacted frames had their index
+          // reduced by 1.
+          return index - 1;
+        } else {
+          // Otherwise, they had their index increased by 1.
+          return index + 1;
+        }
+      }
+    });
+  };
+
+  ns.PiskelController.prototype.hasVisibleFrameAt = function (index) {
+    return this.piskel.hiddenFrames.indexOf(index) === -1;
+  };
+
+  ns.PiskelController.prototype.getVisibleFrameIndexes = function () {
+    return this.getCurrentLayer().getFrames().map(function (frame, index) {
+      return index;
+    }).filter(function (index) {
+      return this.piskel.hiddenFrames.indexOf(index) === -1;
+    }.bind(this));
   };
 
   ns.PiskelController.prototype.getFrameCount = function () {
@@ -296,5 +365,13 @@
 
   ns.PiskelController.prototype.serialize = function () {
     return pskl.utils.serialization.Serializer.serialize(this.piskel);
+  };
+
+  /**
+   * Check if the current sprite is empty. Emptiness here means no pixel has been filled
+   * on any layer or frame for the current sprite.
+   */
+  ns.PiskelController.prototype.isEmpty = function () {
+    return pskl.app.currentColorsService.getCurrentColors().length === 0;
   };
 })();

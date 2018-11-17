@@ -31,6 +31,9 @@
     var downloadButton = document.querySelector('.png-download-button');
     var downloadPixiButton = document.querySelector('.png-pixi-download-button');
     var dataUriButton = document.querySelector('.datauri-open-button');
+    var selectedFrameDownloadButton = document.querySelector('.selected-frame-download-button');
+
+    this.pixiInlineImageCheckbox = document.querySelector('.png-pixi-inline-image-checkbox');
 
     this.initLayoutSection_();
     this.updateDimensionLabel_();
@@ -39,6 +42,7 @@
     this.addEventListener(downloadButton, 'click', this.onDownloadClick_);
     this.addEventListener(downloadPixiButton, 'click', this.onPixiDownloadClick_);
     this.addEventListener(dataUriButton, 'click', this.onDataUriClick_);
+    this.addEventListener(selectedFrameDownloadButton, 'click', this.onDownloadSelectedFrameClick_);
     $.subscribe(Events.EXPORT_SCALE_CHANGED, this.onScaleChanged_);
   };
 
@@ -149,9 +153,9 @@
   };
 
   // Used and overridden in casper integration tests.
-  ns.PngExportController.prototype.downloadCanvas_ = function (canvas) {
+  ns.PngExportController.prototype.downloadCanvas_ = function (canvas, name) {
     // Generate file name
-    var name = this.piskelController.getPiskel().getDescriptor().name;
+    name = name || this.piskelController.getPiskel().getDescriptor().name;
     var fileName = name + '.png';
 
     // Transform to blob and start download.
@@ -167,7 +171,15 @@
     var canvas = this.createPngSpritesheet_();
     var name = this.piskelController.getPiskel().getDescriptor().name;
 
-    zip.file(name + '.png', pskl.utils.CanvasUtils.getBase64FromCanvas(canvas) + '\n', {base64: true});
+    var image;
+
+    if (this.pixiInlineImageCheckbox.checked) {
+      image = canvas.toDataURL('image/png');
+    } else {
+      image = name + '.png';
+
+      zip.file(image, pskl.utils.CanvasUtils.getBase64FromCanvas(canvas) + '\n', {base64: true});
+    }
 
     var width = canvas.width / this.getColumns_();
     var height = canvas.height / this.getRows_();
@@ -192,7 +204,7 @@
       'meta': {
         'app': 'https://github.com/piskelapp/piskel/',
         'version': '1.0',
-        'image': name + '.png',
+        'image': image,
         'format': 'RGBA8888',
         'size': {'w': canvas.width,'h': canvas.height}
       }
@@ -207,6 +219,27 @@
   };
 
   ns.PngExportController.prototype.onDataUriClick_ = function (evt) {
-    window.open(this.createPngSpritesheet_().toDataURL('image/png'));
+    var popup = window.open('about:blank');
+    var dataUri = this.createPngSpritesheet_().toDataURL('image/png');
+    window.setTimeout(function () {
+      var html = pskl.utils.Template.getAndReplace('data-uri-export-partial', {
+        src: dataUri
+      });
+      popup.document.title = dataUri;
+      popup.document.body.innerHTML = html;
+    }.bind(this), 500);
+  };
+
+  ns.PngExportController.prototype.onDownloadSelectedFrameClick_ = function (evt) {
+    var frameIndex = this.piskelController.getCurrentFrameIndex();
+    var name = this.piskelController.getPiskel().getDescriptor().name;
+    var canvas = this.piskelController.renderFrameAt(frameIndex, true);
+    var zoom = this.exportController.getExportZoom();
+    if (zoom != 1) {
+      canvas = pskl.utils.ImageResizer.resize(canvas, canvas.width * zoom, canvas.height * zoom, false);
+    }
+
+    var fileName = name + '-' + (frameIndex + 1) + '.png';
+    this.downloadCanvas_(canvas, fileName);
   };
 })();

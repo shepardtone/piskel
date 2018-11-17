@@ -25,8 +25,8 @@
     </div>
     <div class="import-section import-subsection">
       <span class="dialog-section-title">Resize to</span>
-      <input type="text" class="textfield import-size-field" name="resize-width"/>x
-      <input type="text" class="textfield import-size-field" name="resize-height"/>
+      <input type="text" class="textfield import-size-field" autocomplete="off" name="resize-width"/>x
+      <input type="text" class="textfield import-size-field" autocomplete="off" name="resize-height"/>
     </div>
     <div class="import-section import-subsection">
       <span class="import-section-title">Smooth resize</span>
@@ -40,13 +40,13 @@
     </div>
     <div class="import-section import-subsection">
       <span class="dialog-section-title">Frame size</span>
-      <input type="text" class="textfield import-size-field" name="frame-size-x"/>x
-      <input type="text" class="textfield import-size-field" name="frame-size-y"/>
+      <input type="text" class="textfield import-size-field" autocomplete="off" name="frame-size-x"/>x
+      <input type="text" class="textfield import-size-field" autocomplete="off" name="frame-size-y"/>
     </div>
     <div class="import-section import-subsection">
       <span class="dialog-section-title">Offset</span>
-      <input type="text" class="textfield import-size-field" name="frame-offset-x"/>x
-      <input type="text" class="textfield import-size-field" name="frame-offset-y"/>
+      <input type="text" class="textfield import-size-field" autocomplete="off" name="frame-offset-x"/>x
+      <input type="text" class="textfield import-size-field" autocomplete="off" name="frame-offset-y"/>
     </div>
   </form>
   <div class="import-step-buttons">
@@ -67,11 +67,11 @@
     <div class="import-mode">
       <div class="import-mode-title">How do you want to import the new content?</div>
       <div class="import-mode-section">
-        <span class="import-mode-section-description">Combine the imported content and your sprite.</span>
-        <button class="import-mode-merge-button button-primary button">Merge</button>
+        <span class="import-mode-section-description">Combine with your sprite</span>
+        <button class="import-mode-merge-button button-primary button">Combine</button>
       </div>
       <div class="import-mode-section">
-        <span class="import-mode-section-description">Replace your current sprite by the imported content.</span>
+        <span class="import-mode-section-description">Replace your sprite</span>
         <button class="import-mode-replace-button button-primary button">Replace</button>
       </div>
     </div>
@@ -131,9 +131,6 @@
     The imported image is bigger than the current sprite.
   </div>
   <div class="import-resize-section">
-    <div class="import-resize-option-label">
-      How do you want to proceed?
-    </div>
     <label class="import-resize-option">
       <input type="radio" name="resize-mode" id="resize-option-expand" value="expand" {{expandChecked}}/>
       <span>Expand canvas to {{newSize}}</span>
@@ -162,35 +159,25 @@
   </div>
 
   <div class="import-step-content">
-    <div>Select a frame in your current sprite:</div>
+    <div>Select the insertion frame:</div>
     <div class="insert-frame-preview"></div>
     <div class="insert-mode-container">
       <div class="insert-mode-option-label">
-        How should the imported frames be inserted:
+        Insert imported frames:
       </div>
       <label class="insert-mode-option">
         <input type="radio" name="insert-mode" id="insert-mode-add" value="add" checked="checked"/>
-        <span>Add new frames</span>
+        <span>as new frames</span>
       </label>
       <label class="insert-mode-option">
         <input type="radio" name="insert-mode" id="insert-mode-insert" value="insert"/>
-        <span>Insert in existing frames</span>
+        <span>in existing frames</span>
       </label>
     </div>
     <div class="import-step-buttons">
       <button class="import-back-button button">back</button>
       <button class="import-next-button button button-primary">import</button>
     </div>
-  </div>
-</div>
-</script>
-
-<script type="text/template" id="import-invalid-file">
-<div class="import-step-container">
-  <div>THIS IS AN INVALID FILEZ</div>
-  <div class="import-step-buttons">
-    <button class="import-back-button button">back</button>
-    <button class="import-next-button button button-primary">next</button>
   </div>
 </div>
 </script>

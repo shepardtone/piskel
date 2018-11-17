@@ -17,6 +17,13 @@ function getValue(selector) {
     }');
 }
 
+function getClassName(selector) {
+  return casper.evaluate(
+    'function () { \
+      return document.querySelector(\'' + selector + '\').className;\
+    }');
+}
+
 function isChecked(selector) {
   return casper.evaluate(
     'function () { \
@@ -129,4 +136,26 @@ function setPiskelFromImageSrc(src) {
         pskl.app.piskelController.setPiskel(piskel);\
       });\
     }');
+}
+
+/**
+ * Load the piskel website in debug mode and call the provided callback when ready.
+ */
+function startTest(test, callback) {
+  return casper
+    // Pass "integration-test" to avoid the "unsupported browser" dialog
+    .start(casper.cli.get('baseUrl')+"/?debug&integration-test")
+    .then(function () {
+      casper.echo("URL loaded");
+
+      casper.evaluate(function() {
+        localStorage.clear();
+      }, {});
+      casper.echo("Local storage cleaned");
+
+      casper.waitForSelector('#drawing-canvas-container canvas', callback, test.timeout, 20000);
+    })
+    .run(function () {
+      test.done();
+    });
 }
